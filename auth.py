@@ -1,4 +1,3 @@
-
 import os
 import json
 import time
@@ -7,14 +6,14 @@ from selenium.webdriver.common.by import By
 from urllib.parse import quote
 from dotenv import main
 main.load_dotenv()
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+
+EMAIL = os.getenv("email", "")
+PASSWORD = os.getenv("password", "")
+login_page = "https://www.linkedin.com/login"
 
 COOKIES_PATH = 'auth/cookies.json'
 LOCAL_STORAGE_PATH = 'auth/local_storage.json'
-
-EMAIL = os.getenv("LINKEDIN_EMAIL", "")
-PASSWORD = os.getenv("LINKEDIN_PASSWORD", "")
-login_page = "https://www.linkedin.com/login"
-
 
 def load_data_from_json(path):
     try:
@@ -24,29 +23,26 @@ def load_data_from_json(path):
         print(f"Error loading JSON from {path}: {e}")
         return None
 
-
 def save_data_to_json(data, path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as file:
         json.dump(data, file)
 
-
 def add_cookies(driver, cookies):
     if cookies:
         for cookie in cookies:
             driver.add_cookie(cookie)
-
+            print("ADD_COOKIES FUNCTION CHECK!")
 
 def add_local_storage(driver, local_storage):
     if local_storage:
         for k, v in local_storage.items():
             driver.execute_script(
                 f"window.localStorage.setItem('{k}', '{v}');")
-
+            print("ADD LOCAL FUNCTION CHECK!")
 
 def get_first_folder(path):
     return os.path.normpath(path).split(os.sep)[0]
-
 
 def navigate_and_check(driver, probe_page):
     driver.get(probe_page)
@@ -67,7 +63,6 @@ def navigate_and_check(driver, probe_page):
     else:
         return False
 
-
 def delete_folder(folder_path):
     if os.path.exists(folder_path):
         for filename in os.listdir(folder_path):
@@ -76,23 +71,24 @@ def delete_folder(folder_path):
                 file_path) else os.remove(file_path)
         os.rmdir(folder_path)
 
-
 def login(driver, email, password):
-    if(driver.find_element(By.ID, 'username')): 
+    try : 
         driver.find_element(By.ID, 'username').send_keys(email) 
-    
-    # driver.find_element(By.ID, 'username').send_keys(email)
-    driver.find_element(By.ID, 'password').send_keys(password)
-    driver.find_element(By.XPATH, '//*[@type="submit"]').click()
-
-
+        driver.find_element(By.ID, 'password').send_keys(password)
+        driver.find_element(By.XPATH, '//*[@type="submit"]').click()
+    except (NoSuchElementException) :
+        print("BC")
+        driver.find_element(By.ID, 'password').send_keys(password)
+        driver.find_element(By.XPATH, '//*[@type="submit"]').click()
+        
 def check_cookies_and_login(driver):
     # you have to open some page first before trying to load cookies!
     driver.get(login_page)
     time.sleep(3)
-
     cookies = load_data_from_json(COOKIES_PATH)
     local_storage = load_data_from_json(LOCAL_STORAGE_PATH)
+    print("DEDBUG: C : " , cookies)
+    print("DEDBUG: LS : " , local_storage)
 
     if cookies and local_storage:
         add_cookies(driver, cookies)

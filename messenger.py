@@ -1,20 +1,18 @@
+import os
 import time
 import traceback
-
 from fake_useragent import UserAgent
-
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium_stealth import stealth
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 import time
-
 
 class LinkedinMessenger:
     def __init__(self) -> None:
@@ -65,9 +63,7 @@ class LinkedinMessenger:
         link = "https://www.linkedin.com/login"
         try:
             # self.driver.get(link)
-            self.driver.implicitly_wait(6)
-
-            time.sleep(1)
+            self.driver.implicitly_wait(2)
 
             email_box = self.driver.find_element(By.XPATH, "//input[@id='username']")
             password_box = self.driver.find_element(By.XPATH, "//input[@id='password']")
@@ -124,79 +120,64 @@ class LinkedinMessenger:
         except Exception as e:
             print(traceback.format_exc())
 
+
+
+    def check_and_create_excel_file(self, filename="REPLIES.csv"):
+        if not os.path.exists(filename):
+            df = pd.DataFrame(columns=["Person Name", "Quick Reply"])
+            df.to_excel(filename, index=False)
+            print(f"Created new file: {filename}")
+        else:
+            print(f"File {filename} already exists.")
+
+    def update_excel_file(self, person_name, reply_text, filename="REPLIES.xlsx"):
+        df = pd.read_excel(filename)
+        new_entry = {"Person Name": person_name, "Quick Reply": reply_text}
+        df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
+        df.to_excel(filename, index=False)
+
+    # $('.msg-conversation-card.msg-conversations-container__pillar a').click()
     def click_to_unread(self):
         if not self.driver:
             return
-        
+        self.check_and_create_excel_file()
+
         link = "https://www.linkedin.com/messaging/"
         self.driver.get(link)
         self.driver.implicitly_wait(5)
 
-        button_unread = self.driver.find_element(By.XPATH, '//button[text()="Unread"]')
-        button_unread.click()
-        first_message_processed = 1     
-        # $('.msg-conversation-card.msg-conversations-container__pillar a').click()
-   
+        try:
+            button_unread = self.driver.find_element(By.XPATH, '//button[text()="Unread"]')
+            button_unread.click()
+        
+        except (NoSuchElementException, TimeoutException):
+            print("Unread button not found.")
+            return
+
         while True:
             try:
-                # Refresh the page
                 self.driver.implicitly_wait(10)
-
-                # # Only for the first message so it doesn't get skipped
-                # if(first_message_processed):
-                #     first_message_processed = 0
-                #     # Fetch the details of the person
-                #     person = WebDriverWait(self.driver, 10).until(
-                #         EC.presence_of_element_located((By.CSS_SELECTOR, '.msg-conversation-card.msg-conversations-container__pillar a .msg-conversation-card__participant-names'))
-                #     )
-                #     person_name = person.get_attribute('innerText')
-                #     print("THE PERSON NAME IS : " + person_name + '!!!!!!!')
-
-                #     first_message = WebDriverWait(self.driver, 10).until(
-                #         EC.presence_of_element_located((By.CLASS_NAME, '.msg-conversation-card.msg-conversations-container__pillar a'))
-                #     )
-
-                #     first_message.click()
-                #     try:
-                #         # Locate the first quick reply button
-                #         first_quickreply_button = WebDriverWait(self.driver, 3).until(
-                #             EC.presence_of_element_located((By.CSS_SELECTOR, '.msg-s-message-list__quick-replies-container button'))
-                #         )
-                #         # Fetch the reply to be sent
-                #         reply = WebDriverWait(self.driver, 3).until(
-                #             EC.presence_of_element_located((By.CSS_SELECTOR, '.msg-s-message-list__quick-replies-container button .conversations-quick-replies__reply-content'))
-                #         )
-                #         reply_text = reply.get_attribute('innerText')
-                #         print("Reply Given IS : " + reply_text + '!!!!!\n')
-                #         # Send the quick reply
-                #         first_quickreply_button.click()
-                #     except Exception as e:
-                #         print(f"No Quick Reply options found: ")
-                #         continue
-                   
-
-                # Wait until the messaging page is loaded
-                # UL containing all the unread messages
+                
+                # Wait for the conversations list to load
                 WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located((By.CLASS_NAME, 'msg-conversations-container__conversations-list'))
                 )
-                
-                # Locate the first unread message by its class name
+
+                # Locate the first unread message
                 first_unread_message = WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, '.msg-conversation-card__convo-item-container--unread a'))
                 )
 
-                # Fetch the details of the person
+                # Fetch the person's name
                 person = WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, '.msg-conversation-card__convo-item-container--unread a .msg-conversation-card__participant-names'))
                 )
                 person_name = person.get_attribute('innerText')
-                print("THE PERSON NAME IS : " + person_name + '!!!!!!!')
 
                 # Click the first unread message
                 first_unread_message.click()
-                time.sleep(5)
-
+                # time.sleep(5)
+                reply_text = "N/A"
 
                 try:
                     # Locate the first quick reply button
@@ -209,23 +190,20 @@ class LinkedinMessenger:
                         EC.presence_of_element_located((By.CSS_SELECTOR, '.msg-s-message-list__quick-replies-container button .conversations-quick-replies__reply-content'))
                     )
                     reply_text = reply.get_attribute('innerText')
-                    print("Reply Given IS : " + reply_text + '!!!!!\n')
 
                     # Send the quick reply
                     first_quickreply_button.click()
-                    
-                except Exception as e:
-                    print(f"No Quick Reply options found: ")
-                    continue
+                    time.sleep(5)
 
-            # Working! Name from the UL of unread messages- the first unread message person name
-            # $('.msg-conversation-card__convo-item-container--unread a .msg-conversation-card__participant-names').innerText
+                except (NoSuchElementException, TimeoutException):
+                    reply_text = "N/A"
+                    print("No Quick Reply options found.")
+                
+                # Update the excel file with Person, Reply
+                self.update_excel_file(person_name, reply_text)
 
-            # Working, content of the first quick reply!
-            # $('.msg-s-message-list__quick-replies-container button .conversations-quick-replies__reply-content').innerText
-
-            except (NoSuchElementException, TimeoutException) as e:
-                print(f"No more unread messages found or timeout occurred:")
+            except (NoSuchElementException, TimeoutException):
+                print("No more unread messages found or timeout occurred.")
                 break
 
     def logout(self):

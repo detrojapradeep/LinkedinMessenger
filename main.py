@@ -26,17 +26,9 @@ main.load_dotenv()
 scraper = LinkedinMessenger()
 driver = scraper.driver
 
-RECIPIENT = "Deeksha Daga"
-MESSAGE = """
-Hello John,
-I am sending you this message through LinkedIn.
-Best Regards.
-"""    
 def main():
     check_cookies_and_login(driver)
     time.sleep(3)
-    # scraper.send_message(recipient=RECIPIENT, message=MESSAGE)
-    # scraper.reply_to_unread_messages()
     scraper.click_to_unread()
     scraper.logout()
 
